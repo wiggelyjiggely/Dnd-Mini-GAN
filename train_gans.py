@@ -5,10 +5,10 @@ import torch.nn as nn
 import numpy as np
 import meshio
 import trimesh
+import stl_reader
 import os
 from tqdm import tqdm
 from models.ddCGAN import Generator, Discriminator
-
 
 class custom_dataset(torch.utils.data.Dataset):
     def __init__(self,folder):
@@ -18,15 +18,14 @@ class custom_dataset(torch.utils.data.Dataset):
           for filename in os.listdir(folder + "/" +foldername):
             if filename.endswith('.stl'):
                 try:
-                  mm = meshio.read(folder +"/"+ foldername + '/' + filename)
+                  vertices, indices = stl_reader.read(folder + "/" + foldername + "/" + filename)
                 except Exception as e:
                   print(e)
                   continue
-                mm = mm.points
                 # resize to discrimimnator input size
-                mm = np.array(mm)
+                mm = np.array(vertices)
                 if mm.shape[0] < 612:
-                    mm = np.pad(mm, ((0, 612-mm.shape[0]), (0, 0)), 'constant')
+                    mm = np.pad(mm, ((0, 612-mm.shape[0]), (0, 0)), 'constant', constant_values=0)
                 else:
                     mm = torch.functional.F.interpolate(torch.from_numpy(mm).unsqueeze(0).unsqueeze(0), size=(612, 3), mode='nearest').squeeze(0).squeeze(0).numpy()
                 
@@ -44,7 +43,7 @@ class custom_dataset(torch.utils.data.Dataset):
 
 
 if __name__ == '__main__':
-    folder = 'thingiscrape/downloads/stls'
+    folder = 'scraper/downloads/stls'
     dataset = custom_dataset(folder)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=True)
     noise_dim = 200 # latent space vector dim
