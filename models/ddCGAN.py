@@ -79,6 +79,7 @@ class Discriminator(nn.Module):
         self.out_dim = int(dim / 16)
 
         self.conv1 = nn.Sequential(
+            # layer with shape (3, 64, 64, 64)
             nn.Conv3d(
                 in_channels=in_channels, out_channels=conv1_channels, kernel_size=4,
                 stride=2, padding=1, bias=False

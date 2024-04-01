@@ -3,6 +3,7 @@ from torch.autograd.variable import Variable
 import stl as stl
 import torch.nn as nn
 import numpy as np
+import meshio
 import trimesh
 import os
 from tqdm import tqdm
@@ -11,20 +12,35 @@ from models.ddCGAN import Generator, Discriminator
 
 class custom_dataset(torch.utils.data.Dataset):
     def __init__(self,folder):
-        for foldername in os.listdir(folder):
-            for filename in os.listdir(folder + "/" +foldername):
-                if filename.endswith('.stl'):
-                    mesh = trimesh.load(folder +"/"+ foldername + '/' + filename, force='mesh')
-                    mesh = torch.tensor(mesh.vertices).float()
-
-                    self.data = mesh
-                    self.labels = filename.split('.stl')[0]
-
+      self.data = []
+      self.labels = []
+      for foldername in os.listdir(folder):
+          for filename in os.listdir(folder + "/" +foldername):
+            if filename.endswith('.stl'):
+                try:
+                  mm = meshio.read(folder +"/"+ foldername + '/' + filename)
+                except Exception as e:
+                  print(e)
+                  continue
+                mm = mm.points
+                # resize to discrimimnator input size
+                mm = np.array(mm)
+                if mm.shape[0] < 612:
+                    mm = np.pad(mm, ((0, 612-mm.shape[0]), (0, 0)), 'constant')
+                else:
+                    mm = torch.functional.F.interpolate(torch.from_numpy(mm).unsqueeze(0).unsqueeze(0), size=(612, 3), mode='nearest').squeeze(0).squeeze(0).numpy()
+                
+                #torch tensor
+                mm = torch.from_numpy(mm)                    
+                self.data.append(mm)
+                self.labels.append(filename.split('.stl')[0])
+                  
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
         return self.data[idx], self.labels[idx]
+
 
 
 if __name__ == '__main__':
